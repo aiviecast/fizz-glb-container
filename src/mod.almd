@@ -1,0 +1,64 @@
+// fizz_glb_container — glTF バイナリ(GLB / VRM)コンテナのヘッダ解析コア(§11 vrm-inspect)。
+//
+// 責務 (一行): GLB バイト列から magic / version / 全長 / JSON・BIN チャンクの
+// オフセットと長さを読み取る。JSON 本体のパースやマテリアル解釈は host(JSON.parse)
+// の責務で、ここは「どこに何バイトあるか」だけを純粋な Int で返す。
+//
+// 移植元: openaituber scripts/inspect_vrm.mjs(GLB コンテナの readUInt32LE 群)。
+// GLB レイアウト: header(12) = magic(4)+version(4)+length(4)、続いて
+//   チャンク = length(4)+type(4)+data。1 つ目が JSON、2 つ目が BIN。
+
+import bytes
+
+// ---- リトルエンディアン u32 読み取り ----
+
+// b の off からの 4 バイトを u32(LE)として読む。範囲外は 0。
+fn u32le(b: Bytes, off: Int) -> Int =
+  bytes.get_or(b, off, 0)
+  + bytes.get_or(b, off + 1, 0) * 256
+  + bytes.get_or(b, off + 2, 0) * 65536
+  + bytes.get_or(b, off + 3, 0) * 16777216
+
+// ---- GLB マジック / バージョン ----
+
+// "glTF" magic = 0x46546C67(LE バイト列 g,l,T,F)。
+fn is_glb(b: Bytes) -> Bool = u32le(b, 0) == 0x46546C67
+
+// GLB コンテナ版(通常 2)。
+fn version(b: Bytes) -> Int = u32le(b, 4)
+
+// ファイル全体のバイト長(ヘッダが自己申告する値)。
+fn total_length(b: Bytes) -> Int = u32le(b, 8)
+
+// ---- JSON チャンク(必ず 1 つ目、offset 12 にヘッダ、data は 20 から) ----
+
+fn json_chunk_length(b: Bytes) -> Int = u32le(b, 12)
+
+// JSON チャンクの type タグ。0x4E4F534A = "JSON"。
+fn json_chunk_type(b: Bytes) -> Int = u32le(b, 16)
+fn json_type_ok(b: Bytes) -> Bool = json_chunk_type(b) == 0x4E4F534A
+
+// JSON 本体の開始オフセット(GLB 固定: 12 + 8)。host はここから length バイトを
+// 切り出して JSON.parse する。
+fn json_offset() -> Int = 20
+
+// ---- BIN チャンク(2 つ目、JSON チャンク直後。GLB は 4 バイト境界に揃う) ----
+
+// BIN チャンクヘッダの開始オフセット = 20 + jsonLen。
+fn bin_chunk_offset(b: Bytes) -> Int = json_offset() + json_chunk_length(b)
+
+fn bin_chunk_length(b: Bytes) -> Int = u32le(b, bin_chunk_offset(b))
+
+// BIN チャンクの type タグ。0x004E4942 = "BIN\0"。
+fn bin_chunk_type(b: Bytes) -> Int = u32le(b, bin_chunk_offset(b) + 4)
+
+// BIN 本体の開始オフセット(BIN チャンクヘッダ + 8)。
+fn bin_data_offset(b: Bytes) -> Int = bin_chunk_offset(b) + 8
+
+// BIN チャンクが存在するか(全長がヘッダ+JSON チャンク+BIN チャンクヘッダを超える)。
+fn has_bin_chunk(b: Bytes) -> Bool = total_length(b) >= bin_chunk_offset(b) + 8
+
+// ---- 妥当性 ----
+
+// magic / version2 / JSON type が揃っているか(最低限の健全性)。
+fn is_valid(b: Bytes) -> Bool = is_glb(b) and version(b) == 2 and json_type_ok(b)

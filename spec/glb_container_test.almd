@@ -1,0 +1,64 @@
+import self as glb
+import bytes
+
+// 最小の有効な GLB(JSON 8B + BIN 4B、total=40)。
+fn sample() -> Bytes = bytes.from_list([
+  103, 108, 84, 70,   2, 0, 0, 0,   40, 0, 0, 0,
+  8, 0, 0, 0,   74, 83, 79, 78,
+  123, 125, 32, 32, 32, 32, 32, 32,
+  4, 0, 0, 0,   66, 73, 78, 0,   0, 0, 0, 0,
+])
+
+// JSON のみ(BIN チャンク無し)。total = 12 + 8 + 8 = 28。
+fn json_only() -> Bytes = bytes.from_list([
+  103, 108, 84, 70,   2, 0, 0, 0,   28, 0, 0, 0,
+  8, 0, 0, 0,   74, 83, 79, 78,
+  123, 125, 32, 32, 32, 32, 32, 32,
+])
+
+// glTF でないバイト列。
+fn not_glb() -> Bytes = bytes.from_list([80, 75, 3, 4, 0, 0, 0, 0])
+
+test "u32le リトルエンディアン" {
+  let b = bytes.from_list([1, 0, 0, 0, 255, 255, 255, 255])
+  assert_eq(glb.u32le(b, 0), 1)
+  assert_eq(glb.u32le(b, 4), 4294967295)   // 0xFFFFFFFF
+}
+
+test "magic / version / 全長" {
+  let b = sample()
+  assert_eq(glb.is_glb(b), true)
+  assert_eq(glb.version(b), 2)
+  assert_eq(glb.total_length(b), 40)
+}
+
+test "JSON チャンク" {
+  let b = sample()
+  assert_eq(glb.json_offset(), 20)
+  assert_eq(glb.json_chunk_length(b), 8)
+  assert_eq(glb.json_chunk_type(b), 0x4E4F534A)
+  assert_eq(glb.json_type_ok(b), true)
+}
+
+test "BIN チャンク(オフセット = 20 + jsonLen)" {
+  let b = sample()
+  assert_eq(glb.bin_chunk_offset(b), 28)
+  assert_eq(glb.bin_chunk_length(b), 4)
+  assert_eq(glb.bin_chunk_type(b), 0x004E4942)
+  assert_eq(glb.bin_data_offset(b), 36)
+  assert_eq(glb.has_bin_chunk(b), true)
+}
+
+test "JSON のみ → BIN 無し" {
+  let b = json_only()
+  assert_eq(glb.total_length(b), 28)
+  assert_eq(glb.bin_chunk_offset(b), 28)
+  assert_eq(glb.has_bin_chunk(b), false)
+  assert_eq(glb.is_valid(b), true)
+}
+
+test "glTF でない → 無効" {
+  let b = not_glb()
+  assert_eq(glb.is_glb(b), false)
+  assert_eq(glb.is_valid(b), false)
+}

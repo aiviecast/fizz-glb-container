@@ -1,0 +1,4 @@
+[package]
+name = "fizz_glb_container"
+version = "0.1.0"
+description = "Fizz GLB container — parse glTF binary (GLB/VRM) container header: magic, version, total length, JSON/BIN chunk offsets and lengths. Returns byte offsets so the host slices+parses JSON. One Almide core, native + wasm."

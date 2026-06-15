@@ -1,0 +1,33 @@
+// CLI エントリポイント (native) — 合成した最小 GLB ヘッダを解析して見せる。
+import self as glb
+import bytes
+import json
+import value
+
+// 最小の有効な GLB(JSON="{}      " 8B + BIN 4B)を組み立てる。
+//   header: glTF / ver2 / total=40
+//   json chunk: len=8 / type=JSON / "{}      "
+//   bin chunk:  len=4 / type=BIN\0 / 0,0,0,0
+fn sample() -> Bytes = bytes.from_list([
+  103, 108, 84, 70,   2, 0, 0, 0,   40, 0, 0, 0,        // magic, version, total
+  8, 0, 0, 0,   74, 83, 79, 78,                          // json chunk len, type "JSON"
+  123, 125, 32, 32, 32, 32, 32, 32,                      // json data "{}      "
+  4, 0, 0, 0,   66, 73, 78, 0,   0, 0, 0, 0,             // bin chunk len, type "BIN\0", data
+])
+
+effect fn main() -> Unit = {
+  let b = sample()
+  println(json.stringify(value.object([
+    ("is_glb", value.bool(glb.is_glb(b))),
+    ("version", value.int(glb.version(b))),
+    ("total_length", value.int(glb.total_length(b))),
+    ("json_offset", value.int(glb.json_offset())),
+    ("json_chunk_length", value.int(glb.json_chunk_length(b))),
+    ("json_type_ok", value.bool(glb.json_type_ok(b))),
+    ("bin_chunk_offset", value.int(glb.bin_chunk_offset(b))),
+    ("bin_chunk_length", value.int(glb.bin_chunk_length(b))),
+    ("bin_data_offset", value.int(glb.bin_data_offset(b))),
+    ("has_bin_chunk", value.bool(glb.has_bin_chunk(b))),
+    ("is_valid", value.bool(glb.is_valid(b))),
+  ])))
+}

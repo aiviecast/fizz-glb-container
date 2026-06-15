@@ -1,0 +1,60 @@
+// wasm — vrm-inspect / converter-ui のグルーから呼ぶ。
+//   host が GLB バイト列を in_alloc バッファに書き、各 export がそこから読む。
+//   返すのは全て Int(オフセット/長さ/フラグ)を Float 化したもの。string は跨がせない。
+//   (offset を返し、JSON 本体の切り出し+JSON.parse は host 側で行う。)
+import self as glb
+import bytes
+import float
+import int
+
+var g_in: Bytes = bytes.new(0)
+
+@export(wasm, "in_alloc")
+fn in_alloc(len: Float) -> RawPtr = {
+  g_in = bytes.new(float.to_int(len))
+  bytes.as_mut_ptr(g_in)
+}
+
+@export(wasm, "is_glb")
+fn w_is_glb() -> Float = if glb.is_glb(g_in) then 1.0 else 0.0
+
+@export(wasm, "version")
+fn w_version() -> Float = int.to_float(glb.version(g_in))
+
+@export(wasm, "total_length")
+fn w_total_length() -> Float = int.to_float(glb.total_length(g_in))
+
+@export(wasm, "json_offset")
+fn w_json_offset() -> Float = int.to_float(glb.json_offset())
+
+@export(wasm, "json_chunk_length")
+fn w_json_chunk_length() -> Float = int.to_float(glb.json_chunk_length(g_in))
+
+@export(wasm, "json_type_ok")
+fn w_json_type_ok() -> Float = if glb.json_type_ok(g_in) then 1.0 else 0.0
+
+@export(wasm, "bin_chunk_offset")
+fn w_bin_chunk_offset() -> Float = int.to_float(glb.bin_chunk_offset(g_in))
+
+@export(wasm, "bin_chunk_length")
+fn w_bin_chunk_length() -> Float = int.to_float(glb.bin_chunk_length(g_in))
+
+@export(wasm, "bin_data_offset")
+fn w_bin_data_offset() -> Float = int.to_float(glb.bin_data_offset(g_in))
+
+@export(wasm, "has_bin_chunk")
+fn w_has_bin_chunk() -> Float = if glb.has_bin_chunk(g_in) then 1.0 else 0.0
+
+@export(wasm, "is_valid")
+fn w_is_valid() -> Float = if glb.is_valid(g_in) then 1.0 else 0.0
+
+effect fn main() -> Unit = {
+  let _a = in_alloc(1.0)
+  let _b = w_is_glb()
+  let _c = w_version()
+  let _d = w_total_length()
+  let _e = w_json_chunk_length()
+  let _f = w_bin_chunk_offset()
+  let _g = w_is_valid()
+  ()
+}
