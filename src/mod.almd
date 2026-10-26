@@ -14,10 +14,10 @@ import bytes
 
 // b の off からの 4 バイトを u32(LE)として読む。範囲外は 0。
 fn u32le(b: Bytes, off: Int) -> Int =
-  bytes.get_or(b, off, 0)
-  + bytes.get_or(b, off + 1, 0) * 256
-  + bytes.get_or(b, off + 2, 0) * 65536
-  + bytes.get_or(b, off + 3, 0) * 16777216
+  bytes.get(b, off) ?? 0
+  + bytes.get(b, off + 1) ?? 0 * 256
+  + bytes.get(b, off + 2) ?? 0 * 65536
+  + bytes.get(b, off + 3) ?? 0 * 16777216
 
 // ---- GLB マジック / バージョン ----
 
