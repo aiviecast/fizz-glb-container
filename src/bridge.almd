@@ -4,6 +4,7 @@
 //   (offset を返し、JSON 本体の切り出し+JSON.parse は host 側で行う。)
 import self as glb
 import bytes
+import ffi
 import float
 import int
 
@@ -12,7 +13,7 @@ var g_in: Bytes = bytes.zeros(0)
 @export(wasm, "in_alloc")
 fn in_alloc(len: Float) -> RawPtr = {
   g_in = bytes.zeros(int.from_saturating(len))
-  bytes.as_mut_ptr(g_in)
+  ffi.address(g_in)
 }
 
 @export(wasm, "is_glb")
